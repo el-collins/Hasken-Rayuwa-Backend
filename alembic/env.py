@@ -43,7 +43,7 @@ def run_migrations_offline():
     script output.
 
     """
-    url = "postgresql://postgres:6969@localhost:5432/hasken_rayuwa"
+    url = 'postgresql://hasken_rayuwa_w562_user'
     context.configure(
         url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True
     )
