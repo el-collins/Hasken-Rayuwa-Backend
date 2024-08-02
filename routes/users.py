@@ -4,7 +4,7 @@ import cloudinary.api
 from db.database import get_db, get_or_create_entity
 from models.users import VolunteerUser, ContactUser, User
 from core.auth import authenticate_user, logout_user
-from fastapi import APIRouter, Depends, Form, File, UploadFile, Query
+from fastapi import APIRouter, Depends, Form, File, HTTPException, UploadFile, Query
 
 users_router = router = APIRouter(tags=["Users"])
 

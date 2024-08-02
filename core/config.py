@@ -41,14 +41,16 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[misc]
     @property
     def SQL_DATABASE_URI(self) -> PostgresDsn:
-        HostUrl = MultiHostUrl.build(
-                scheme="postgresql",
-                username=self.POSTGRES_USER,
-                password=self.POSTGRES_PASSWORD,
-                host=self.POSTGRES_SERVER,
-                # port=self.POSTGRES_PORT,
-                # path=self.POSTGRES_DB,
-            )
+        HostUrl = self.DATABASE_URL
+        
+        # MultiHostUrl.build(
+        #         scheme="postgresql",
+        #         username=self.POSTGRES_USER,
+        #         password=self.POSTGRES_PASSWORD,
+        #         host=self.POSTGRES_SERVER,
+        #         # port=self.POSTGRES_PORT,
+        #         # path=self.POSTGRES_DB,
+        #     )
     
         
         print(HostUrl)
