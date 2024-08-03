@@ -23,7 +23,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8"
     )  # noqa
 
-    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    ENVIRONMENT: Literal["local", "staging", "production"] = "production"
     LOCAL_DATABASE_URL: str
     REMOTE_DATABASE_URL: str
     TITLE: str
