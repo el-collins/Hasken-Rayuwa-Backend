@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
-    # DATABASE_URL: str
+    DATABASE_URL: str
     DOCS_URL: str
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyHttpUrl] | str, BeforeValidator(parse_cors)
