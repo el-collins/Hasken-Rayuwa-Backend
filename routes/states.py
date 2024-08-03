@@ -1,3 +1,4 @@
+#routes/states.py
 import os
 import uuid
 import asyncio
@@ -9,7 +10,7 @@ from sqlmodel import Session, select
 from schemas.states import StateDataInput
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import JSONResponse
-from core.auth import authenticate_user, logout_user
+# from core.auth import authenticate_user, logout_user
 from db.database import get_db, get_or_create_entity
 from models.states import StateData, States, ReligionType
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request, Form, status, Body, Query
@@ -203,6 +204,34 @@ async def states_list(
             'status': 'success', 
             'data': data, 
             'totals': totals
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=str(e)
+        )
+    
+
+# Retrieves all States
+
+@router.get('/states')
+async def get_states(
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Retrieves all States from the database.
+
+    Returns:
+        dict: A dictionary containing the list of States.
+    """
+    try:
+        states = db.query(States).all()
+        data = [state.value for state in states]
+
+        return {
+            'status': 'success', 
+            'data': data
         }
 
     except Exception as e:

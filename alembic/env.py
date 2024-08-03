@@ -1,9 +1,10 @@
-import os
+# import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
+from core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -29,7 +30,10 @@ target_metadata = SQLModel.metadata
 
 def get_url():
     """Retrieve the database URL from the configuration or environment variable."""
-    return config.get_main_option("sqlalchemy.url")
+    # return config.get_main_option("sqlalchemy.url")
+    # print(settings.SQL_DATABASE_URI)
+    return settings.SQL_DATABASE_URI
+
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -43,7 +47,7 @@ def run_migrations_offline():
     script output.
 
     """
-    url = 'postgresql://hasken_rayuwa_w562_user'
+    url = get_url()
     context.configure(
         url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True
     )

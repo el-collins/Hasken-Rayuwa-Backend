@@ -1,5 +1,5 @@
 from core.config import settings
-from sqlmodel import Field, SQLModel, create_engine, Session, Column, String, Relationship
+from sqlmodel import SQLModel, create_engine, Session
 
 # database setup
 engine = create_engine(str(settings.SQL_DATABASE_URI))
@@ -34,7 +34,7 @@ def get_or_create_entity(db: Session, model, **kwargs):
         db.refresh(entity)
     return entity
 
-def update_instance(instance, data):
+def update_instance(instance, data, db):
     for field, value in data.dict(exclude_unset=True).items():
         setattr(instance, field, value)
     db.commit()

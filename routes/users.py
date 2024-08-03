@@ -1,3 +1,4 @@
+#routes/users.py
 from sqlmodel import Session
 import cloudinary.uploader
 import cloudinary.api
@@ -21,15 +22,15 @@ def create_contact(
     Returns:
         Contact: The created contact object.
     """
-    existing_user = db.query(User).filter(User.email == email).first()
+    # existing_user = db.query(User).filter(User.email == email).first()
     
-    if not existing_user:
-        save_user = get_or_create_entity(
-            db, 
-            User, 
-            fullname=fullname, 
-            email=email
-        )
+    # if not existing_user:
+    #     save_user = get_or_create_entity(
+    #         db, 
+    #         User, 
+    #         fullname=fullname, 
+    #         email=email
+    #     )
     
     contact = get_or_create_entity(
         db, 

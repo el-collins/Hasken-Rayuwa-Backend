@@ -1,4 +1,3 @@
-import os
 import cloudinary
 from core.config import settings
 from fastapi import FastAPI, status
@@ -8,21 +7,23 @@ from routes.users import users_router
 from routes.states import states_router
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
 
 from db.database import start_engine
 
 app = FastAPI(
     title=settings.TITLE,
-    docs_url=settings.DOCS_URL,
+    docs_url='/api/docs',
     description=settings.DESCRIPTION,
-    version=settings.API_VERSION
+    version='/api/v1',
 )
 
 # Routers
-app.include_router(link_router, prefix=settings.API_VERSION)
-app.include_router(users_router, prefix=settings.API_VERSION)
-app.include_router(states_router, prefix=settings.API_VERSION)
-app.include_router(auth_router, prefix=settings.API_VERSION)
+app.include_router(link_router, prefix='/api/v1')
+app.include_router(users_router, prefix='/api/v1')
+app.include_router(states_router, prefix='/api/v1')
+app.include_router(auth_router, prefix='/api/v1')
 
 # Add CORS middleware
 app.add_middleware(
@@ -40,10 +41,21 @@ cloudinary.config(
     secure=True
 )
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 @app.on_event("startup")
 def on_startup():
+    # logger.info(f"Connecting to database: {settings.SQL_DATABASE_URI}")
     start_engine()
+
+
+# @app.on_event("startup")
+# def on_startup():
+#     start_engine()
+
 
 @app.get('/', include_in_schema=False, response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
 def index():
-    return settings.DOCS_URL
+    return '/api/docs'
