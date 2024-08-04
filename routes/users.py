@@ -104,15 +104,16 @@ def get_users(
 
     for user in user_query:
         email = user.email
+        fullname = user.fullname
         if email in contact_emails and email in volunteer_emails:
             if not group or group == 'both':
-                results.append({'email': email, 'group': 'contact | volunteer'})
+                results.append({'email': email, 'fullname': fullname, 'group': 'contact | volunteer'})
         elif email in contact_emails:
             if not group or group == 'contact':
-                results.append({'email': email, 'group': 'contact'})
+                results.append({'email': email, 'fullname': fullname, 'group': 'contact'})
         elif email in volunteer_emails:
             if not group or group == 'volunteer':
-                results.append({'email': email, 'group': 'volunteer'})
+                results.append({'email': email, 'fullname': fullname, 'group': 'volunteer'})
 
     return results
 
