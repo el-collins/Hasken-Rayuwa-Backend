@@ -1,9 +1,6 @@
-#routes/links.py
-
 from pydantic import HttpUrl
 from pytube import YouTube
 from sqlmodel import Session
-from core.config import settings
 from models.links import Link
 from core.auth import authenticate_user
 from db.database import get_db, get_or_create_entity
@@ -128,7 +125,8 @@ def update_link(
     # db.commit()
     # db.refresh(link)
     
-    updated_link = get_or_create_entity(
+    # updated_link = 
+    get_or_create_entity(
         db,
         Link,
         str(url),

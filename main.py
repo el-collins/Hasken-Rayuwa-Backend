@@ -5,6 +5,7 @@ from routes.auth import auth_router
 from routes.links import link_router
 from routes.users import users_router
 from routes.states import states_router
+from routes.blogs import blog_router
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -24,6 +25,7 @@ app.include_router(link_router, prefix='/api/v1')
 app.include_router(users_router, prefix='/api/v1')
 app.include_router(states_router, prefix='/api/v1')
 app.include_router(auth_router, prefix='/api/v1')
+app.include_router(blog_router, prefix='/api/v1')
 
 # Add CORS middleware
 app.add_middleware(
