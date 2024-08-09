@@ -43,26 +43,7 @@ class Settings(BaseSettings):
     # POSTGRES_PORT: int
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
-
     POSTGRES_DB: str
-
-    # @computed_field  # type: ignore[misc]
-    # @property
-    # def SQL_DATABASE_URI(self) -> PostgresDsn:
-    #     HostUrl = self.DATABASE_URL
-    #     # 'postgresql://hasken_rayuwa_w562_user:MJWlTS2psJcrlijKzoCwOl3CaXatNTuX@dpg-cqlbio3qf0us7398uqi0-a.oregon-postgres.render.com/hasken_rayuwa_w562'
-
-    #     # MultiHostUrl.build(
-    #     #         scheme="postgresql",
-    #     #         username=self.POSTGRES_USER,
-    #     #         password=self.POSTGRES_PASSWORD,
-    #     #         host=self.POSTGRES_SERVER,
-    #     #         # port=self.POSTGRES_PORT,
-    #     #         # path=self.POSTGRES_DB,
-    #     #     )
-
-    #     return HostUrl
-
     @computed_field
     @property
     def SQL_DATABASE_URI(self) -> str:
