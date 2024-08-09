@@ -35,7 +35,8 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "https://hasken-rayuwa.web.app"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization"],
+    # allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["*"],
 )
 
 cloudinary.config(
