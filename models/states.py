@@ -1,5 +1,5 @@
 from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel, Column, String, Relationship
+from sqlmodel import Field, SQLModel
 from enum import Enum
 
 class States(str, Enum):

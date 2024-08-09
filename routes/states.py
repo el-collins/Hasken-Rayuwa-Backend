@@ -6,24 +6,20 @@ import pandas as pd
 from typing import List
 from pathlib import Path
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session
 from schemas.states import StateDataInput
-from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import JSONResponse
 
 # from core.auth import authenticate_user, logout_user
-from db.database import get_db, get_or_create_entity
-from models.states import StateData, States, ReligionType
+from db.database import get_db
+from models.states import StateData, States
 from fastapi import (
     APIRouter,
     Depends,
     UploadFile,
     File,
     HTTPException,
-    Request,
-    Form,
     status,
-    Body,
     Query,
 )
 
@@ -225,6 +221,7 @@ async def states_list(
 
         data = [
             {
+                "id": record.id,
                 "State": record.State.value,
                 "Lga": record.Lga,
                 "Ward": record.Ward,
