@@ -1,5 +1,5 @@
 from pydantic import HttpUrl
-from pytube import YouTube
+from pytube import YouTube, exceptions as pytube_exceptions
 from sqlmodel import Session
 from models.links import Link
 from core.auth import authenticate_user
@@ -32,7 +32,7 @@ def read_links(
 @router.post('/links', status_code=status.HTTP_201_CREATED)
 def create_link(
     url: HttpUrl, 
-    # username: str = Depends(authenticate_user), 
+    username: str = Depends(authenticate_user), 
     db: Session = Depends(get_db)
     ) -> Link:
     
@@ -48,10 +48,16 @@ def create_link(
     url_str = str(url)
     
     if url_str.startswith('https://youtu.be'):
-        video = YouTube(url_str)
-        media_type = 'youtube'
-        title = video.title
-        description = video.description
+        try:
+            video = YouTube(url_str)
+            media_type = 'youtube'
+            title = video.title
+            description = video.description
+        except pytube_exceptions.PytubeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f'Error accessing YouTube video details: {str(e)}'
+            )
     elif url_str.startswith('https://spotifyanchor-web.app'):
         media_type = 'spotify'
         title = None
