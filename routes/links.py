@@ -32,7 +32,7 @@ def read_links(
 @router.post('/links', status_code=status.HTTP_201_CREATED)
 def create_link(
     url: HttpUrl, 
-    username: str = Depends(authenticate_user), 
+    # username: str = Depends(authenticate_user), 
     db: Session = Depends(get_db)
     ) -> Link:
     
