@@ -30,8 +30,9 @@ app.include_router(blog_router, prefix='/api/v1')
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # allow_origins=["*"],
     # allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["http://localhost:5173", "https://hasken-rayuwa.web.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Content-Type", "Authorization"],
