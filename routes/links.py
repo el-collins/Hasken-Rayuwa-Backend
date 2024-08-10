@@ -50,7 +50,6 @@ def create_link(
     if url_str.startswith('https://youtu.be') or url_str.startswith('https://www.youtube.com'):
         try:
             video = YouTube(url_str)
-            print(video)
             media_type = 'youtube'
             title = video.title
             description = video.description
