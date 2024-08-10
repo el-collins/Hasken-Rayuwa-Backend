@@ -30,7 +30,16 @@ def read_blogs(
     
     return blogs
 
-
+# Get blog by ID
+@router.get("/blogs/{blog_id}", response_model=Blog)
+def read_blog(blog_id: UUID, db: Session = Depends(get_db)) -> Blog:
+    """
+    Retrieves a single blog entry from the database based on the specified ID.
+    """
+    blog = db.get(Blog, blog_id)
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
+    return blog
 
 
 # Create Blog
