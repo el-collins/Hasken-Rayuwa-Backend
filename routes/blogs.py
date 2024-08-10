@@ -5,7 +5,7 @@ from sqlmodel import Session
 from models.blogs import Blog
 # from core.auth import authenticate_user
 from db.database import get_db
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 
 blog_router = router = APIRouter(tags=['Blogs'])
 
@@ -39,7 +39,6 @@ def create_blog(
     title: str,
     author: str,
     content: str,
-    visibility: Optional[str] = "active",
     db: Session = Depends(get_db),
     # username: str = Depends(authenticate_user)
 ) -> Blog:
@@ -51,7 +50,6 @@ def create_blog(
         title=title,
         author=author,
         content=content,
-        visibility=visibility,
         date=datetime.datetime.now(datetime.timezone.utc)
     )
     db.add(blog)
