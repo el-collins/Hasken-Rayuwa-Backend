@@ -12,7 +12,7 @@ blog_router = router = APIRouter(tags=['Blogs'])
 
 @router.get('/blogs', response_model=list[Blog])
 def read_blogs(
-    visibility: str | None = Query(None),
+    # visibility: str | None = Query(None),
     skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db)) -> list[Blog]:
@@ -24,8 +24,8 @@ def read_blogs(
         list[Blog]: A list of Blog objects that match the specified criteria.
     """
     query = db.query(Blog)
-    if visibility:
-        query = query.filter(Blog.visibility == visibility)
+    # if visibility:
+    #     query = query.filter(Blog.visibility == visibility)
     blogs = query.offset(skip).limit(limit).all()
     
     return blogs

@@ -9,7 +9,7 @@ class Blog(SQLModel, table=True):
     title: str = Field(...)
     author: str = Field(...)
     content: str = Field(...)
-    visibility: str = Field(default="active")  # Options: "active" or "inactive"
+    # visibility: str = Field(default="active")  # Options: "active" or "inactive"
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
