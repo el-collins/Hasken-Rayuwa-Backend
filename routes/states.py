@@ -7,12 +7,11 @@ from typing import List
 from pathlib import Path as FilePath
 from sqlalchemy import func
 from sqlmodel import Session
-from schemas.states import StateDataInput
+from schemas.states import StateDataInput, StateDataMultiUpdate
 from fastapi.responses import JSONResponse
 from uuid import UUID
 from sqlalchemy.orm.exc import NoResultFound
-from fastapi import Body, HTTPException
-from fastapi import Path
+from fastapi import Body, Path, HTTPException
 
 
 
@@ -251,6 +250,44 @@ async def states_list(
 
 # Retrieves all States
 
+# Retrieves state by ID
+@router.get("/state_data/{state_id}")
+async def get_state_data(state_id: UUID, db: Session = Depends(get_db)) -> dict:
+    """
+    Retrieves a State from the database based on the specified ID.
+
+    Args:
+        state_id (UUID): The ID of the State to retrieve.
+
+    Returns:
+        dict: A dictionary containing the State object.
+    """
+    try:
+        state = db.query(StateData).filter(StateData.id == state_id).one()
+        data = {
+            "id": state.id,
+            "State": state.State.value,
+            "Lga": state.Lga,
+            "Ward": state.Ward,
+            "Village": state.Village,
+            "Estimated_Christian_Population": state.Estimated_Christian_Population,
+            "Estimated_Muslim_Population": state.Estimated_Muslim_Population,
+            "Estimated_Traditional_Religion_Population": state.Estimated_Traditional_Religion_Population,
+            "Converts": state.Converts,
+            "Estimated_Total_Population": state.Estimated_Total_Population,
+            "Film_Attendance": state.Film_Attendance,
+            "People_Group": state.People_Group,
+            "Practiced_Religion": state.Practiced_Religion,
+        }
+
+        return {"status": "success", "data": data}
+
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="State data not found")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.get("/states")
 async def get_states(db: Session = Depends(get_db)) -> dict:
@@ -272,10 +309,11 @@ async def get_states(db: Session = Depends(get_db)) -> dict:
 
 
 
+
 @router.put("/edit_state_data/{state_id}")
 async def edit_state_data(
     state_id: UUID = Path(...),
-    state_data: StateDataInput = Body(...),
+    update_data: StateDataMultiUpdate = Body(...),
     db: Session = Depends(get_db),
 ):
     try:
@@ -283,20 +321,45 @@ async def edit_state_data(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="State data not found")
 
-    # Update the state data
-    for field, value in state_data.dict(exclude_unset=True).items():
+    updated_fields = {}
+
+    for field, value in update_data.updates.items():
+        # Check if the field is valid
+        if not hasattr(state, field):
+            raise HTTPException(status_code=400, detail=f"Invalid field: {field}")
+
+        # Special handling for the State field
+        if field == "State":
+            try:
+                value = States(value)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid State value: {value}")
+
+        # Type checking and conversion
+        field_type = type(getattr(state, field))
+        try:
+            if field_type == int:
+                value = int(value)
+            elif field_type == str:
+                value = str(value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid value type for field {field}")
+
+        # Update the specified field
         setattr(state, field, value)
+        updated_fields[field] = value
 
     try:
         db.commit()
         db.refresh(state)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={"message": "State data updated successfully.", "data": state},
+            content={"message": "State data updated successfully.", "updated_fields": updated_fields},
         )
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error updating state data: {str(e)}")
+    
     
 
 

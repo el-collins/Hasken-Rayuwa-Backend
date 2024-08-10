@@ -1,7 +1,6 @@
 # schemas.py
-from pydantic import BaseModel, validator
-from typing import List, Union
-from fastapi import UploadFile
+from pydantic import BaseModel
+from typing import Dict, Union
 from models.states import States, ReligionType
 
 
@@ -18,3 +17,6 @@ class StateDataInput(BaseModel):
     film_attendance: int
     people_group: str
     practiced_religion: ReligionType
+
+class StateDataMultiUpdate(BaseModel):
+    updates: Dict[str, Union[str, int, States]]
