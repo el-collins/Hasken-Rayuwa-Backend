@@ -4,11 +4,17 @@ import uuid
 import asyncio
 import pandas as pd
 from typing import List
-from pathlib import Path
+from pathlib import Path as FilePath
 from sqlalchemy import func
 from sqlmodel import Session
 from schemas.states import StateDataInput
 from fastapi.responses import JSONResponse
+from uuid import UUID
+from sqlalchemy.orm.exc import NoResultFound
+from fastapi import Body, HTTPException
+from fastapi import Path
+
+
 
 # from core.auth import authenticate_user, logout_user
 from db.database import get_db
@@ -18,7 +24,6 @@ from fastapi import (
     Depends,
     UploadFile,
     File,
-    HTTPException,
     status,
     Query,
 )
@@ -31,14 +36,14 @@ UPLOAD_DIRECTORY = "./uploads"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 
 
-async def save_file(file: UploadFile) -> Path:
-    file_path = Path(UPLOAD_DIRECTORY) / f"{uuid.uuid4()}.xlsx"
+async def save_file(file: UploadFile) -> FilePath:
+    file_path = FilePath(UPLOAD_DIRECTORY) / f"{uuid.uuid4()}.xlsx"
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
     return file_path
 
 
-async def read_excel_file(file_path: Path) -> pd.DataFrame:
+async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, pd.read_excel, file_path)
 
@@ -263,3 +268,55 @@ async def get_states(db: Session = Depends(get_db)) -> dict:
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+
+
+@router.put("/edit_state_data/{state_id}")
+async def edit_state_data(
+    state_id: UUID = Path(...),
+    state_data: StateDataInput = Body(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        state = db.query(StateData).filter(StateData.id == state_id).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="State data not found")
+
+    # Update the state data
+    for field, value in state_data.dict(exclude_unset=True).items():
+        setattr(state, field, value)
+
+    try:
+        db.commit()
+        db.refresh(state)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "State data updated successfully.", "data": state},
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error updating state data: {str(e)}")
+    
+
+
+@router.delete("/delete_state_data/{state_id}")
+async def delete_state_data(
+    state_id: UUID = Path(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        state = db.query(StateData).filter(StateData.id == state_id).one()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="State data not found")
+
+    try:
+        db.delete(state)
+        db.commit()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "State data deleted successfully."},
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error deleting state data: {str(e)}")
