@@ -9,6 +9,8 @@ from routes.blogs import blog_router
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from routes.filmshow import filmshow_router
+from routes.discipleship import discipleship_router
 
 
 from db.database import start_engine
@@ -26,6 +28,8 @@ app.include_router(users_router, prefix='/api/v1')
 app.include_router(states_router, prefix='/api/v1')
 app.include_router(auth_router, prefix='/api/v1')
 app.include_router(blog_router, prefix='/api/v1')
+app.include_router(filmshow_router, prefix='/api/v1')
+app.include_router(discipleship_router, prefix='/api/v1')
 
 # Add CORS middleware
 app.add_middleware(

@@ -1,22 +1,23 @@
 import datetime
-from typing import Optional
 from uuid import UUID, uuid4
 from sqlmodel import Session
 from models.blogs import Blog
+
 # from core.auth import authenticate_user
 from db.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Dict, Any
 
-blog_router = router = APIRouter(tags=['Blogs'])
+blog_router = router = APIRouter(tags=["Blogs"])
 
 
-@router.get('/blogs', response_model=list[Blog])
+@router.get("/blogs", response_model=list[Blog])
 def read_blogs(
     # visibility: str | None = Query(None),
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db)) -> list[Blog]:
-    
+    db: Session = Depends(get_db),
+) -> list[Blog]:
     """
     Retrieves a list of blogs from the database based on the specified criteria.
 
@@ -27,8 +28,9 @@ def read_blogs(
     # if visibility:
     #     query = query.filter(Blog.visibility == visibility)
     blogs = query.offset(skip).limit(limit).all()
-    
+
     return blogs
+
 
 # Get blog by ID
 @router.get("/blogs/{blog_id}", response_model=Blog)
@@ -38,7 +40,9 @@ def read_blog(blog_id: UUID, db: Session = Depends(get_db)) -> Blog:
     """
     blog = db.get(Blog, blog_id)
     if not blog:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+        )
     return blog
 
 
@@ -59,7 +63,7 @@ def create_blog(
         title=title,
         author=author,
         content=content,
-        date=datetime.datetime.now(datetime.timezone.utc)
+        date=datetime.datetime.now(datetime.timezone.utc),
     )
     db.add(blog)
     db.commit()
@@ -67,33 +71,47 @@ def create_blog(
     return blog
 
 
-# Update Blog
-@blog_router.put("/blogs/{blog_id}")
+@router.put("/blogs/{blog_id}", response_model=Blog)
 def update_blog(
     blog_id: UUID,
-    title: Optional[str] = None,
-    content: Optional[str] = None,
-    visibility: Optional[str] = None,
+    updates: Dict[str, Any],
     db: Session = Depends(get_db),
     # username: str = Depends(authenticate_user)
 ) -> Blog:
     """
-    Updates an existing blog entry in the database.
+    Updates one or more fields of a blog entry in the database.
+
+    Args:
+        blog_id (UUID): The ID of the blog to update.
+        updates (Dict[str, Any]): A dictionary containing the fields to update and their new values.
+        db (Session): The database session.
+
+    Returns:
+        Blog: The updated blog entry.
+
+    Raises:
+        HTTPException: If the blog is not found or if there's an attempt to update a non-existent field.
     """
     blog = db.get(Blog, blog_id)
     if not blog:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+        )
 
-    if title:
-        blog.title = title
-    if content:
-        blog.content = content
-    if visibility:
-        blog.visibility = visibility
+    valid_fields = {"title", "author", "content"}
+    for field, value in updates.items():
+        if field not in valid_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid field: {field}",
+            )
+        setattr(blog, field, value)
 
+    db.add(blog)
     db.commit()
     db.refresh(blog)
     return blog
+
 
 # Delete Blog
 @blog_router.delete("/blogs/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -107,7 +125,9 @@ def delete_blog(
     """
     blog = db.get(Blog, blog_id)
     if not blog:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+        )
 
     db.delete(blog)
     db.commit()

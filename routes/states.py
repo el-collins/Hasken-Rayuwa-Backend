@@ -14,7 +14,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from fastapi import Body, Path, HTTPException
 
 
-
 # from core.auth import authenticate_user, logout_user
 from db.database import get_db
 from models.states import StateData, States
@@ -40,6 +39,10 @@ async def save_file(file: UploadFile) -> FilePath:
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
     return file_path
+
+
+async def delete_file(file_path: FilePath) -> None:
+    os.remove(file_path)
 
 
 async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
@@ -99,6 +102,7 @@ async def upload_files(
             file_path = await save_file(file)
             df = await read_excel_file(file_path)
             process_file(df, db)
+            await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -250,6 +254,7 @@ async def states_list(
 
 # Retrieves all States
 
+
 # Retrieves state by ID
 @router.get("/state_data/{state_id}")
 async def get_state_data(state_id: UUID, db: Session = Depends(get_db)) -> dict:
@@ -305,9 +310,6 @@ async def get_states(db: Session = Depends(get_db)) -> dict:
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-
-
 
 
 @router.put("/edit_state_data/{state_id}")
@@ -333,7 +335,9 @@ async def edit_state_data(
             try:
                 value = States(value)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid State value: {value}")
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid State value: {value}"
+                )
 
         # Type checking and conversion
         field_type = type(getattr(state, field))
@@ -343,7 +347,9 @@ async def edit_state_data(
             elif field_type == str:
                 value = str(value)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid value type for field {field}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid value type for field {field}"
+            )
 
         # Update the specified field
         setattr(state, field, value)
@@ -354,13 +360,16 @@ async def edit_state_data(
         db.refresh(state)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={"message": "State data updated successfully.", "updated_fields": updated_fields},
+            content={
+                "message": "State data updated successfully.",
+                "updated_fields": updated_fields,
+            },
         )
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error updating state data: {str(e)}")
-    
-    
+        raise HTTPException(
+            status_code=400, detail=f"Error updating state data: {str(e)}"
+        )
 
 
 @router.delete("/delete_state_data/{state_id}")
@@ -382,4 +391,6 @@ async def delete_state_data(
         )
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error deleting state data: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error deleting state data: {str(e)}"
+        )
