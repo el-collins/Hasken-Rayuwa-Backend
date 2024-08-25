@@ -20,7 +20,7 @@ class States(str, Enum):
     Edo = "Edo"
     Ekiti = "Ekiti"
     Enugu = "Enugu"
-    FCT = "Federal Capital Territory"
+    FCT = "FCT"
     Gombe = "Gombe"
     Imo = "Imo"
     Jigawa = "Jigawa"
