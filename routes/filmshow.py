@@ -128,9 +128,11 @@ async def upload_files(
     try:
         for file in files:
             file_path = await save_file(file)
-            df = await read_excel_file(file_path)
-            process_file(df, db)
-            await delete_file(file_path)
+            try:
+                df = await read_excel_file(file_path)
+                process_file(df, db)
+            finally:
+                await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
