@@ -169,6 +169,7 @@ def create_film_show_report(
 def get_all_film_show_reports(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 ):
+    """Fetch all film show reports."""
     try:
 
         reports = db.exec(select(FilmShowReport).offset(skip).limit(limit)).all()
@@ -181,6 +182,7 @@ def get_all_film_show_reports(
 # API for fetching all data in a particular month
 @router.get("/film-show-reports/{month}", response_model=List[FilmShowReport])
 def get_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
+    """Fetch all film show reports for a particular month."""
     month = month.upper()
     try:
         reports = db.exec(
@@ -199,6 +201,7 @@ def get_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
 def update_film_show_report(
     report_id: UUID, report_update: FilmShowReportUpdate, db: Session = Depends(get_db)
 ):
+    """Update a film show report."""
     try:
         db_report = db.get(FilmShowReport, report_id)
         if not db_report:
@@ -215,9 +218,12 @@ def update_film_show_report(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+
 # API for deleting data
 @router.delete("/film-show-report/{report_id}", response_model=dict)
 def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
+    """Delete a film show report."""
     try:
         db_report = db.get(FilmShowReport, report_id)
         if not db_report:
@@ -233,6 +239,7 @@ def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
 # API for deleting data by month
 @router.delete("/film-show-reports/{month}", response_model=dict)
 def delete_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
+    """Delete all film show reports for a particular month."""
     try:
         # Convert month to uppercase for consistency
         month = month.upper()
