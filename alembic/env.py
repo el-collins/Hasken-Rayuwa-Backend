@@ -7,6 +7,8 @@ from models.links import Link
 from models.users import User
 from models.states import StateData
 from models.blogs import Blog
+from models.filmshow import FilmShowReport
+from models.discipleship import DiscipleshipReport
 
 from core.config import settings
 

@@ -16,6 +16,7 @@ import os
 from pathlib import Path as FilePath
 import uuid
 import pandas as pd
+from models.states import States
 
 discipleship_router = router = APIRouter(tags=["Discipleship Report"])
 
@@ -32,6 +33,7 @@ async def save_file(file: UploadFile) -> FilePath:
         buffer.write(await file.read())
     return file_path
 
+
 async def delete_file(file_path: FilePath) -> None:
     os.remove(file_path)
 
@@ -44,24 +46,49 @@ async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
 def process_file(df: pd.DataFrame, db: Session) -> None:
     try:
         for _, record in df.iterrows():
+
+            # Handle different variations of FCT
+            state = record["State"].strip().title()
+            if state in ["Federal Capital Territory", "FCT", "Abuja"]:
+                state = States.FCT
+            else:
+                try:
+                    state = States(state)
+                except ValueError:
+                    raise ValueError(f"Invalid state: {state}")
             existing_record = (
                 db.query(DiscipleshipReport)
                 .filter_by(
                     Team=record["Team"],
-                    State=record["State"],
+                    State=state or record["State"],
                     LGA=record["LGA"],
                     Ward=record["Ward"],
                     Village=record["Village"],
-
                 )
                 .first()
             )
 
             record_data = {
-                "Population": int(record["Population"]) if pd.notna(record["Population"]) else None,
+                "Population": (
+                    int(record["Population"])
+                    if pd.notna(record["Population"])
+                    else None
+                ),
                 "UPG": record["UPG"] if pd.notna(record["UPG"]) else None,
                 "Attendance": int(record["Attendance"]),  # This should not be null
-                "SD_Cards": int(record["S.D Cards"]) if pd.notna(record["S.D Cards"]) else None,
+                "SD_Cards": (
+                    int(record["S.D Cards"]) if pd.notna(record["S.D Cards"]) else None
+                ),
+                "Manuals_Given": (
+                    int(record["Manuals Given"])
+                    if pd.notna(record["Manuals Given"])
+                    else None
+                ),
+                "Bibles_Given": (
+                    int(record["Bibles Given"])
+                    if pd.notna(record["Bibles Given"])
+                    else None
+                ),
                 "Month": record["Month"],
             }
 
@@ -86,7 +113,6 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
         raise HTTPException(status_code=400, detail=f"Error inserting data: {str(e)}")
 
 
-
 @router.post("/discipleship-upload")
 async def upload_files(
     files: List[UploadFile] = File(...), db: Session = Depends(get_db)
@@ -95,9 +121,11 @@ async def upload_files(
     try:
         for file in files:
             file_path = await save_file(file)
-            df = await read_excel_file(file_path)
-            process_file(df, db)
-            await delete_file(file_path)
+            try:
+                df = await read_excel_file(file_path)
+                process_file(df, db)
+            finally:
+                await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -113,7 +141,9 @@ async def upload_files(
 
 
 # API for posting data manually
-@router.post("/discipleship-report/", status_code=201, response_model=DiscipleshipReport)
+@router.post(
+    "/discipleship-report/", status_code=201, response_model=DiscipleshipReport
+)
 def create_discipleship_report(
     report: DiscipleshipReportCreate, db: Session = Depends(get_db)
 ):
@@ -127,17 +157,16 @@ def create_discipleship_report(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
-
 @router.get("/discipleship-reports/", response_model=List[DiscipleshipReport])
-def get_all_discipleship_reports(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_all_discipleship_reports(
+    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
+):
     try:
 
         reports = db.exec(select(DiscipleshipReport).offset(skip).limit(limit)).all()
         return reports
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 
 @router.get("/discipleship-report/{report_id}", response_model=DiscipleshipReport)
@@ -152,41 +181,44 @@ def get_discipleship_report(report_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
-@router.get("/discipleship-report/month/{month}", response_model=List[DiscipleshipReport])
+@router.get(
+    "/discipleship-report/month/{month}", response_model=List[DiscipleshipReport]
+)
 def get_discipleship_reports_by_month(month: str, db: Session = Depends(get_db)):
     try:
-        reports = db.exec(select(DiscipleshipReport).where(DiscipleshipReport.month == month.upper())).all()
+        reports = db.exec(
+            select(DiscipleshipReport).where(DiscipleshipReport.Month == month.upper())
+        ).all()
         if not reports:
-            raise HTTPException(status_code=404, detail=f"No reports found for month: {month}")
+            raise HTTPException(
+                status_code=404, detail=f"No reports found for month: {month}"
+            )
         return reports
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 
 @router.put("/discipleship-report/{report_id}", response_model=DiscipleshipReport)
 def update_discipleship_report(
     report_id: UUID,
     report_update: DiscipleshipReportUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     try:
         db_report = db.get(DiscipleshipReport, report_id)
         if not db_report:
             raise HTTPException(status_code=404, detail="Report not found")
-        
+
         report_data = report_update.dict(exclude_unset=True)
         for key, value in report_data.items():
             setattr(db_report, key, value)
-        
+
         db.add(db_report)
         db.commit()
         db.refresh(db_report)
         return db_report
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 
 @router.delete("/discipleship-report/{report_id}", response_model=dict)

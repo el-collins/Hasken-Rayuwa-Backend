@@ -16,6 +16,8 @@ class DiscipleshipReportCreate(BaseModel):
     UPG: Optional[str] = None
     Attendance: Optional[int] = None
     SD_Cards: Optional[int] = None
+    Manuals_Given: Optional[int] = None
+    Bibles_Given: Optional[int] = None
    
 
 
@@ -30,3 +32,6 @@ class DiscipleshipReportUpdate(BaseModel):
     UPG: Optional[str] = None
     Attendance: Optional[int] = None
     SD_Cards: Optional[int] = None
+    Manuals_Given: Optional[int] = None
+    Bibles_Given: Optional[int] = None
+    

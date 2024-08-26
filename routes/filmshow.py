@@ -1,4 +1,4 @@
-from datetime import datetime
+# from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select, delete
@@ -20,7 +20,6 @@ import asyncio
 from models.states import States
 
 
-
 filmshow_router = router = APIRouter(tags=["Film Show Report"])
 
 
@@ -36,10 +35,10 @@ async def save_file(file: UploadFile) -> FilePath:
         buffer.write(await file.read())
     return file_path
 
+
 async def delete_file(file_path: FilePath) -> None:
     # Delete the file after processing
     os.remove(file_path)
-
 
 
 async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
@@ -50,16 +49,6 @@ async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
 def process_file(df: pd.DataFrame, db: Session) -> None:
     try:
         for _, record in df.iterrows():
-            date_str = record["Date"]
-            # # if the date is in the wrong format, try to convert it else return it like that
-            try:
-                date_obj = datetime.strptime(date_str, "%d/%m/%Y").date()
-            except Exception:
-                # If the above fails, try another common format
-                # date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-                continue
-
-
             # Handle different variations of FCT
             state = record["State"].strip().title()
             if state in ["Federal Capital Territory", "FCT", "Abuja"]:
@@ -70,6 +59,43 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                 except ValueError:
                     raise ValueError(f"Invalid state: {state}")
 
+            date_str = record["Date"]
+
+            # Convert date object to string
+            if isinstance(date_str, pd.Timestamp):
+                date_str = date_str.strftime("%Y-%m-%d").replace("-", "/")
+                print("hello world")
+            else:
+                date_str = str(date_str).split(" ")[0].replace("-", "/")
+
+            record_data = {
+                "LGA": str(record["LGA"]) if pd.notna(record["LGA"]) else None,
+                "Population": (
+                    int(record["Population"])
+                    if pd.notna(record["Population"])
+                    else None
+                ),
+                "UPG": record["UPG"] if pd.notna(record["UPG"]) else None,
+                "Attendance": int(record["Attendance"]),  # This should not be null
+                "SD_Cards": (
+                    int(record["S.D Cards"]) if pd.notna(record["S.D Cards"]) else None
+                ),
+                "Audio_Bibles": (
+                    int(record["Audio Bibles"])
+                    if pd.notna(record["Audio Bibles"])
+                    else None
+                ),
+                "People_Saved": (
+                    int(record["People Saved"])
+                    if pd.notna(record["People Saved"])
+                    else None
+                ),
+                # "Date": record["Date"].date(),
+                # "Date": date_obj or record["Date"],
+                "Date": date_str or str(record["Date"]),
+                "Month": record["Month"].upper(),
+            }
+
             existing_record = (
                 db.query(FilmShowReport)
                 .filter_by(
@@ -78,26 +104,13 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                     # LGA=record["LGA"],
                     Ward=record["Ward"],
                     Village=record["Village"],
-                    # Date=record["Date"].date(),  
-                    Date=date_obj or record["Date"],
+                    Date=date_str or str(record["Date"]),
+                    # Date=record["Date"].date(),
+                    # Date=date_obj or record["Date"],
                     # Date=date_obj,
-
                 )
                 .first()
             )
-
-            record_data = {
-                "LGA": str(record["LGA"]) if pd.notna(record["LGA"]) else None,
-                "Population": int(record["Population"]) if pd.notna(record["Population"]) else None,
-                "UPG": record["UPG"] if pd.notna(record["UPG"]) else None,
-                "Attendance": int(record["Attendance"]),  # This should not be null
-                "SD_Cards": int(record["S.D Cards"]) if pd.notna(record["S.D Cards"]) else None,
-                "Audio_Bibles": int(record["Audio Bibles"]) if pd.notna(record["Audio Bibles"]) else None,
-                "People_Saved": int(record["People Saved"]) if pd.notna(record["People Saved"]) else None,
-                # "Date": record["Date"].date(),
-                "Date": date_obj or record["Date"],
-                "Month": record["Month"],
-            }
 
             if existing_record:
                 for key, value in record_data.items():
@@ -117,7 +130,6 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error inserting data: {str(e)}")
-
 
 
 @router.post("/filmshow-upload")
@@ -163,20 +175,17 @@ def create_film_show_report(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
-
 @router.get("/film-show-reports/", response_model=List[FilmShowReport])
 def get_all_film_show_reports(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 ):
     """Fetch all film show reports."""
     try:
-
         reports = db.exec(select(FilmShowReport).offset(skip).limit(limit)).all()
         return reports
+        # Assuming FilmShowReport has a 'created_at' field
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 
 # API for fetching all data in a particular month
@@ -195,6 +204,20 @@ def get_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
         return reports
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# Retrieves data by ID
+@router.get("/film-show-report/{report_id}", response_model=FilmShowReport)
+def get_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
+    """Fetch a film show report by ID."""
+    try:
+        db_report = db.get(FilmShowReport, report_id)
+        if not db_report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return db_report
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 # API for updating/editing one or more fields by ID
 @router.put("/film-show-report/{report_id}", response_model=FilmShowReport)
@@ -219,7 +242,6 @@ def update_film_show_report(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
 # API for deleting data
 @router.delete("/film-show-report/{report_id}", response_model=dict)
 def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
@@ -234,7 +256,7 @@ def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
         return {"message": "Report deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
 
 # API for deleting data by month
 @router.delete("/film-show-reports/{month}", response_model=dict)
@@ -249,14 +271,19 @@ def delete_film_show_reports_by_month(month: str, db: Session = Depends(get_db))
         reports = db.exec(statement).all()
 
         if not reports:
-            raise HTTPException(status_code=404, detail=f"No reports found for month: {month}")
+            raise HTTPException(
+                status_code=404, detail=f"No reports found for month: {month}"
+            )
 
         # Delete all reports for the given month
-        delete_statement = delete(FilmShowReport).where(FilmShowReport.Month == month) # type: ignore
-        db.exec(delete_statement) # type: ignore
+        delete_statement = delete(FilmShowReport).where(FilmShowReport.Month == month)  # type: ignore
+        db.exec(delete_statement)  # type: ignore
         db.commit()
 
-        return {"message": f"All reports for month {month} deleted successfully", "count": len(reports)}
+        return {
+            "message": f"All reports for month {month} deleted successfully",
+            "count": len(reports),
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

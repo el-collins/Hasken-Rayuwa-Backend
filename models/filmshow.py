@@ -4,12 +4,15 @@ from datetime import date
 from typing import Optional
 from models.states import States
 
+
 class FilmShowReport(SQLModel, table=True):
-    __tablename__: str = "film_show_reports"
+    __tablename__ = "film_show_reports" # type: ignore
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    Year: int = Field(default=date.today().year)
+    CreatedAt: date = Field(default=date.today())
     Team: str = Field(...)
-    State: States = Field(...)
+    State: States = Field(index=True)
     Ward: str = Field(...)
     Village: str = Field(...)
     LGA: Optional[str] = Field(default=None)
@@ -19,6 +22,6 @@ class FilmShowReport(SQLModel, table=True):
     SD_Cards: Optional[int] = Field(default=None)
     Audio_Bibles: Optional[int] = Field(default=None)
     People_Saved: Optional[int] = Field(default=None)
-    Date: date = Field(...)
-    Month: str = Field(...)
-
+    # Date: date = Field(...)
+    Date: Optional[str] = Field(...)
+    Month: str = Field(index=True)

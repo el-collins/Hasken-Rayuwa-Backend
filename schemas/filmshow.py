@@ -1,10 +1,11 @@
 from pydantic import BaseModel
-from datetime import date
+# from datetime import date
 from typing import Optional
 
 from sqlmodel import Field
 
 from models.states import States
+
 
 class FilmShowReportCreate(BaseModel):
     Month: str
@@ -19,7 +20,7 @@ class FilmShowReportCreate(BaseModel):
     SD_Cards: Optional[int] = None
     Audio_Bibles: Optional[int] = None
     People_Saved: Optional[int] = None
-    Date: date
+    Date: Optional[str] = None
 
 
 class FilmShowReportUpdate(BaseModel):
@@ -34,5 +35,5 @@ class FilmShowReportUpdate(BaseModel):
     SD_Cards: Optional[int] = None
     Audio_Bibles: Optional[int] = None
     People_Saved: Optional[int] = None
-    Date: Optional[date] = None
+    Date: Optional[str] = None
     Month: Optional[str] = None
