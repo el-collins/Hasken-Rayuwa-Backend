@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from routes.filmshow import filmshow_router
 from routes.discipleship import discipleship_router
-from db.s3_backup import ensure_db_exists, backup_to_s3, start_periodic_backup
+from db.s3_backup import ensure_db_exists, backup_sqlite_to_s3
 import atexit
+from fastapi import Request
 
 
 from db.database import start_engine
@@ -48,6 +49,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def backup_after_request(request: Request, call_next):
+    response = await call_next(request)
+    if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+        backup_sqlite_to_s3()
+    return response
+
 cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
     api_key=settings.CLOUDINARY_API_KEY,
@@ -67,12 +75,11 @@ def on_startup():
 
 @app.on_event("shutdown")
 def on_shutdown():
-    backup_to_s3()
-    start_periodic_backup()
+    backup_sqlite_to_s3()
 
 
 # Register the backup function to run on normal program exit
-atexit.register(backup_to_s3)
+atexit.register(backup_sqlite_to_s3)
 
 
 @app.get(
