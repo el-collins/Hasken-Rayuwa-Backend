@@ -5,3 +5,6 @@ __pycache__
 .coverage
 .env
 .env.prod
+*.db
+*.sqlite
+*.sqlite3
