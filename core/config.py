@@ -1,7 +1,6 @@
 from typing import Any, Annotated, Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BeforeValidator, computed_field, AnyHttpUrl
-# from pydantic_core import MultiHostUrl
 from dotenv import load_dotenv
 
 
@@ -11,6 +10,7 @@ def parse_cors(v: Any) -> list[str] | str:
     elif isinstance(v, list | str):
         return v
     raise ValueError(v)
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,8 +23,8 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8"
     )  # noqa
 
-    ENVIRONMENT: Literal["local", "staging", "production"] = "production"
-    LOCAL_DATABASE_URL: str
+    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    LOCAL_DATABASE_URL: str = "sqlite:///./dev.db"
     REMOTE_DATABASE_URL: str
     TITLE: str
     DESCRIPTION: str
@@ -34,22 +34,17 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
-    DATABASE_URL: str
     DOCS_URL: str
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyHttpUrl] | str, BeforeValidator(parse_cors)
     ] = []
-    POSTGRES_SERVER: str
-    # POSTGRES_PORT: int
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
+
     @computed_field
     @property
     def SQL_DATABASE_URI(self) -> str:
         if self.ENVIRONMENT == "local":
+            print("Using local database")
             return self.LOCAL_DATABASE_URL
-            # return "postgresql://postgres:collins@localhost/hasken_rayuwa"
         else:
             return self.REMOTE_DATABASE_URL
 
@@ -64,4 +59,4 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str | None = None
 
 
-settings = Settings()
+settings = Settings()  # type: ignore

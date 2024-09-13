@@ -2,7 +2,7 @@ from core.config import settings
 from sqlmodel import SQLModel, create_engine, Session
 
 # database setup
-engine = create_engine(settings.SQL_DATABASE_URI, connect_args={"check_same_thread": False})
+engine = create_engine(str(settings.SQL_DATABASE_URI))
 
 
 def start_engine():

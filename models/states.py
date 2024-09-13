@@ -56,7 +56,7 @@ class ReligionType(str, Enum):
     
     
 class StateData(SQLModel, table=True):
-    __tablename__ = "state_data"
+    __tablename__ = "state_data" # type: ignore
     
     id: UUID = Field(
         default_factory=uuid4, 

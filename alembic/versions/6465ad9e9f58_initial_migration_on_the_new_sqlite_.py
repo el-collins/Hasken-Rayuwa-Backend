@@ -1,8 +1,8 @@
-"""modified discipleship and filmshow table model
+"""Initial migration on the new sqlite database
 
-Revision ID: 96fe904d3f2d
-Revises: 9e9bfee9edc0
-Create Date: 2024-08-26 00:39:27.162876
+Revision ID: 6465ad9e9f58
+Revises: 
+Create Date: 2024-09-13 13:10:34.395140
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '96fe904d3f2d'
-down_revision: Union[str, None] = '9e9bfee9edc0'
+revision: str = '6465ad9e9f58'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

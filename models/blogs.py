@@ -4,7 +4,7 @@ from sqlmodel import Field, SQLModel
 from datetime import datetime, timezone
 
 class Blog(SQLModel, table=True):
-    __tablename__ = 'blogs'
+    __tablename__ = 'blogs' # type: ignore
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     title: str = Field(...)
     author: str = Field(...)

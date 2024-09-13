@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
 from sqlmodel import SQLModel
 from models.links import Link
 from models.users import User
@@ -10,9 +10,8 @@ from models.blogs import Blog
 from models.filmshow import FilmShowReport
 from models.discipleship import DiscipleshipReport
 
+from alembic import context
 from core.config import settings
-
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -28,7 +27,7 @@ config.set_main_option('sqlalchemy.url', settings.SQL_DATABASE_URI)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata =  SQLModel.metadata
+target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -44,7 +43,7 @@ def run_migrations_offline() -> None:
     here as well.  By skipping the Engine creation
     we don't even need a DBAPI to be available.
 
-    Calls to context.execute() here emit the given string to the 
+    Calls to context.execute() here emit the given string to the
     script output.
 
     """
