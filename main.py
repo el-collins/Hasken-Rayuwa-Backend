@@ -11,31 +11,37 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from routes.filmshow import filmshow_router
 from routes.discipleship import discipleship_router
+from db.s3_backup import ensure_db_exists, backup_to_s3, start_periodic_backup
+import atexit
 
 
 from db.database import start_engine
 
 app = FastAPI(
     title=settings.TITLE,
-    docs_url='/api/docs',
+    docs_url="/api/docs",
     description=settings.DESCRIPTION,
-    version='/api/v1',
+    version="/api/v1",
 )
 
 # Routers
-app.include_router(link_router, prefix='/api/v1')
-app.include_router(users_router, prefix='/api/v1')
-app.include_router(states_router, prefix='/api/v1')
-app.include_router(auth_router, prefix='/api/v1')
-app.include_router(blog_router, prefix='/api/v1')
-app.include_router(filmshow_router, prefix='/api/v1')
-app.include_router(discipleship_router, prefix='/api/v1')
+app.include_router(link_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(states_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(blog_router, prefix="/api/v1")
+app.include_router(filmshow_router, prefix="/api/v1")
+app.include_router(discipleship_router, prefix="/api/v1")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     # allow_origins=["*"],
-    allow_origins=["https://hasken-rayuwa.web.app","https://hasken-rayuwa.web.app/", "http://localhost:5173"],
+    allow_origins=[
+        "https://hasken-rayuwa.web.app",
+        "https://hasken-rayuwa.web.app/",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     # allow_headers=["Content-Type", "Authorization"],
@@ -46,7 +52,7 @@ cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
     api_key=settings.CLOUDINARY_API_KEY,
     api_secret=settings.CLOUDINARY_API_SECRET,
-    secure=True
+    secure=True,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -55,15 +61,25 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 def on_startup():
-    # logger.info(f"Connecting to database: {settings.SQL_DATABASE_URI}")
+    ensure_db_exists()
     start_engine()
 
 
-# @app.on_event("startup")
-# def on_startup():
-#     start_engine()
+@app.on_event("shutdown")
+def on_shutdown():
+    backup_to_s3()
+    start_periodic_backup()
 
 
-@app.get('/', include_in_schema=False, response_class=RedirectResponse, status_code=status.HTTP_302_FOUND)
+# Register the backup function to run on normal program exit
+atexit.register(backup_to_s3)
+
+
+@app.get(
+    "/",
+    include_in_schema=False,
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
+)
 def index():
-    return '/api/docs'
+    return "/api/docs"

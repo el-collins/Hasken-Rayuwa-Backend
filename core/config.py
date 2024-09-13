@@ -58,5 +58,9 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: str | None = None
     EMAILS_FROM_NAME: str | None = None
 
+    S3_ACCESS_KEY: str
+    S3_SECRET_KEY: str
+    BUCKET_NAME: str
+
 
 settings = Settings()  # type: ignore

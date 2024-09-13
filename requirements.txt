@@ -3,6 +3,8 @@ annotated-types==0.7.0
 anyio==4.4.0
 async-timeout==4.0.3
 asyncpg==0.29.0
+boto3==1.35.18
+botocore==1.35.18
 certifi==2024.6.2
 click==8.1.7
 cloudinary==1.40.0
@@ -22,6 +24,7 @@ httpx==0.27.0
 idna==3.7
 iniconfig==2.0.0
 Jinja2==3.1.4
+jmespath==1.0.1
 Mako==1.3.5
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
@@ -50,6 +53,7 @@ pytube==15.0.0
 pytz==2024.1
 PyYAML==6.0.1
 rich==13.7.1
+s3transfer==0.10.2
 shellingham==1.5.4
 six==1.16.0
 sniffio==1.3.1
