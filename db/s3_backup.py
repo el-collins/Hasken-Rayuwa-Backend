@@ -4,7 +4,7 @@ import shutil
 import tarfile
 from pathlib import Path
 import boto3
-# from botocore.exceptions import ClientError
+from botocore.client import Config
 from core.config import settings
 import logging
 import tempfile
@@ -44,8 +44,10 @@ def backup_sqlite_to_s3():
             # Upload to S3
             s3_client = boto3.client(
                 's3',
+                 region_name="eu-north-1",
                 aws_access_key_id=settings.S3_ACCESS_KEY,
-                aws_secret_access_key=settings.S3_SECRET_KEY
+                aws_secret_access_key=settings.S3_SECRET_KEY,
+                config=Config(signature_version="s3v4"),
             )
             
             s3_key = f"{aws_folder}/{today}/{archive_name}"
