@@ -1,40 +1,59 @@
-from core.config import settings
-from sqlmodel import SQLModel, create_engine, Session
-
-# database setup
-engine = create_engine(settings.SQL_DATABASE_URI, connect_args={"check_same_thread": False})
-
-
-def start_engine():
-    SQLModel.metadata.create_all(engine)
+from motor.motor_asyncio import AsyncIOMotorClient
+from typing import Annotated
+import os
+from dotenv import load_dotenv
+from pydantic import BeforeValidator
 
 
-def get_db():
-    with Session(engine) as session:
-        yield session
+load_dotenv()
+
+def get_db_client():
+    MONGO_URL = os.getenv("MONGO_URL")
+    client = AsyncIOMotorClient(MONGO_URL)
+    return client
+
+# Get database
+db = get_db_client().hasken_rayuwa
 
 
-def get_or_create_entity(db: Session, model, **kwargs):
+# Collections
+states_collection = db.states
+filmshow_collection = db.filmshows
+discipleship_collection = db.discipleships
+users_collection = db.users
+links_collection = db.links
+blogs_collection = db.blogs
+
+# Type definitions for MongoDB ObjectId handling
+# PyObjectId = Annotated[str, BeforeValidator(str)]
+# ObjectId = Annotated[
+#     bson.ObjectId,
+#     BeforeValidator(lambda x: bson.ObjectId(x) if isinstance(x, str) else x),
+# ]
+
+# Database helper functions
+async def get_db():
+    try:
+        yield db
+    finally:
+        pass
+
+async def get_or_create_entity(collection, filter_query, data):
     """
-    Function to get an entity from the database based on the provided filter criteria, or create a new entity if it does not exist.
-
-    Parameters:
-    - db (Session): The database session to use for querying and creating entities.
-    - model (SQLModel): The SQLModel class representing the entity to work with.
-    - **kwargs: Arbitrary keyword arguments representing the filter criteria for querying the entity.
-
-    Returns:
-    - The retrieved or newly created entity based on the provided filter criteria.
+    Get an entity from MongoDB or create if it doesn't exist
     """
-    entity = db.query(model).filter_by(**kwargs).first()
+    entity = await collection.find_one(filter_query)
     if not entity:
-        entity = model(**kwargs)
-        db.add(entity)
-        db.commit()
-        db.refresh(entity)
+        entity = await collection.insert_one(data)
+        entity = await collection.find_one({"_id": entity.inserted_id})
     return entity
 
-def update_instance(instance, data, db):
-    for field, value in data.dict(exclude_unset=True).items():
-        setattr(instance, field, value)
-    db.commit()
+# async def update_instance(collection, id, data):
+#     """
+#     Update a MongoDB document
+#     """
+#     update_result = await collection.update_one(
+#         {"_id": bson.ObjectId(id)},
+#         {"$set": data}
+#     )
+#     return update_result

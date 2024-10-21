@@ -1,6 +1,12 @@
-from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel, BeforeValidator, Field
 from enum import Enum
+from typing import Annotated
+
+
+# Custom type for MongoDB ObjectId
+# PyObjectId = Annotated[str, Field(default_factory=lambda: str(ObjectId()))]
+
+
 
 class States(str, Enum):
     """
@@ -54,23 +60,25 @@ class ReligionType(str, Enum):
     Traditional = "Traditional"
     Other = "Other"
     
+
+PyObjectId = Annotated[str, BeforeValidator(str)]
+
+
     
-class StateData(SQLModel, table=True):
-    __tablename__ = "state_data" # type: ignore
-    
-    id: UUID = Field(
-        default_factory=uuid4, 
-        primary_key=True)
-    
-    State: States = Field(...)
-    Lga: str = Field(index=True)
-    Ward: str = Field(...)
-    Village: str = Field(...)
-    Estimated_Christian_Population: int = Field(...)
-    Estimated_Muslim_Population: int = Field(...)
-    Estimated_Traditional_Religion_Population: int = Field(...)
+class StateData(BaseModel):
+    # id: Optional[PyObjectId] = Field(alias="_id", default=None)    
+    id: PyObjectId = Field(alias="_id")
+    State: States
+    Lga: str 
+    Ward: str 
+    Village: str 
+    Estimated_Christian_Population: int 
+    Estimated_Muslim_Population: int 
+    Estimated_Traditional_Religion_Population: int 
     Converts: int = Field(ge=0)
-    Estimated_Total_Population: int = Field(default=0)
-    Film_Attendance: int = Field(...)
-    People_Group: str = Field(...)
-    Practiced_Religion: str = Field(...)
+    Estimated_Total_Population: int = 0
+    Film_Attendance: int 
+    People_Group: str 
+    Practiced_Religion: str 
+
+

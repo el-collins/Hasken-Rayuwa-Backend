@@ -24,8 +24,7 @@ class Settings(BaseSettings):
     )  # noqa
 
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    LOCAL_DATABASE_URL: str = "sqlite:///./dev.db"
-    REMOTE_DATABASE_URL: str
+    MONGO_URL: str
     TITLE: str
     DESCRIPTION: str
     API_VERSION: str
@@ -39,14 +38,6 @@ class Settings(BaseSettings):
         list[AnyHttpUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
-    @computed_field
-    @property
-    def SQL_DATABASE_URI(self) -> str:
-        if self.ENVIRONMENT == "local":
-            print("Using local database")
-            return self.LOCAL_DATABASE_URL
-        else:
-            return self.REMOTE_DATABASE_URL
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
