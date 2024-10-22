@@ -1,10 +1,13 @@
-from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel
+from typing import Annotated
 
-class Link(SQLModel, table=True):
-    __tablename__ = 'links'
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    url: str = Field(unique=True, index=True)
-    media_type: str = Field(index=True)
+from pydantic import BaseModel, BeforeValidator, Field
+
+PyObjectId = Annotated[str, BeforeValidator(str)]
+
+
+class Link(BaseModel):
+    id: PyObjectId = Field(alias="_id")
+    url: str = Field(...)
+    media_type: str = Field(...)
     title: str | None = Field(...)
     description: str | None = Field(...)
