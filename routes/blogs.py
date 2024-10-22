@@ -3,6 +3,7 @@ from db.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 from bson import ObjectId
+from fastapi.responses import JSONResponse
 
 blog_router = router = APIRouter(tags=["Blogs"])
 
@@ -65,9 +66,11 @@ async def create_blog(
         }
 
         result = await db.blogs_collection.insert_one(blog_doc)
-        if result.inserted_id:
-            return await db.blogs_collection.find_one({"_id": blog_doc["_id"]})
-        raise HTTPException(status_code=400, detail="Failed to create blog")
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Blog created successfully", "id": str(result.inserted_id)},
+        )
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
