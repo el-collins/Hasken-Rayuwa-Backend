@@ -6,6 +6,8 @@ from core.auth import authenticate_user
 from db.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from bson import ObjectId
+from bson import json_util
+import json
 
 link_router = router = APIRouter(tags=["Links"])
 
@@ -30,7 +32,12 @@ async def read_links(
 
         cursor = db.links_collection.find(query).skip(skip).limit(limit)
         links = await cursor.to_list(length=limit)
-        return links
+         # Convert MongoDB documents to JSON-serializable format
+        links_json = json.loads(json_util.dumps(links))
+        return links_json
+        
+
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
