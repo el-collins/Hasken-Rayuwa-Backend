@@ -279,14 +279,14 @@ async def edit_state_data(
         for field, value in update_data.updates.items():
             if field == "State":
                 try:
-                    value = States(value).value
+                    value = States(value)
                 except ValueError:
                     raise HTTPException(status_code=400, detail=f"Invalid State value: {value}")
             updates[field] = value
 
         # Update document
         result = await db.states_collection.update_one(
-            {"_id": str(state_id)},
+            {"_id": ObjectId(state_id)},
             {"$set": updates}
         )
 

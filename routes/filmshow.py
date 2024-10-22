@@ -201,18 +201,23 @@ async def update_film_show_report(
 ):
     """Update a film show report."""
     try:
-        update_data = {k: v for k, v in report_update.dict(exclude_unset=True).items()}
-
-        result = await db.filmshow_collection.update_one(
-            {"_id": ObjectId(report_id)}, {"$set": update_data}
+        db_report = await db.filmshow_collection.find_one(
+            {"_id": ObjectId(report_id)}
         )
-
-        if result.matched_count == 0:
+        if not db_report:
             raise HTTPException(status_code=404, detail="Report not found")
+        
+        report_data = report_update.dict(exclude_unset=True)
+
+        await db.filmshow_collection.update_one(
+            {"_id": ObjectId(report_id)},
+            {"$set": report_data}
+        )
 
         updated_report = await db.filmshow_collection.find_one(
             {"_id": ObjectId(report_id)}
         )
+
         return FilmShowReport(**updated_report)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
