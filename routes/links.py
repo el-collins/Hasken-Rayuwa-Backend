@@ -1,4 +1,5 @@
 from datetime import datetime
+from fastapi.responses import JSONResponse
 from pydantic import HttpUrl
 from pytube import YouTube, exceptions as pytube_exceptions
 from core.auth import authenticate_user
@@ -90,10 +91,11 @@ async def create_link(
             "updated_at": datetime.utcnow(),
         }
 
-        result = await db.links_collection.insert_one(link_doc)
-        if result.inserted_id:
-            return await db.links_collection.find_one({"_id": link_doc["_id"]})
-        raise HTTPException(status_code=400, detail="Failed to create link")
+        await db.links_collection.insert_one(link_doc)
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "link data updated successfully."}
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
