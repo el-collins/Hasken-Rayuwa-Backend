@@ -1,7 +1,6 @@
 from datetime import datetime
 from pydantic import HttpUrl
 from pytube import YouTube, exceptions as pytube_exceptions
-from models.links import Link
 from core.auth import authenticate_user
 from db.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -10,7 +9,7 @@ from bson import ObjectId
 link_router = router = APIRouter(tags=["Links"])
 
 
-@router.get("/links", response_model=list[Link])
+@router.get("/links")
 async def read_links(
     media_type: str | None = Query(None),
     skip: int = 0,
@@ -99,7 +98,7 @@ async def create_link(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/links/{link_id}", response_model=Link)
+@router.put("/links/{link_id}")
 async def update_link(
     link_id: str,
     url: HttpUrl,
