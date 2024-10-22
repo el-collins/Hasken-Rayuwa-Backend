@@ -1,134 +1,140 @@
-import datetime
-from uuid import UUID, uuid4
-from sqlmodel import Session
-from models.blogs import Blog
-
-# from core.auth import authenticate_user
+from datetime import datetime, timezone
 from db.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
+from bson import ObjectId
 
 blog_router = router = APIRouter(tags=["Blogs"])
 
 
-@router.get("/blogs", response_model=list[Blog])
-def read_blogs(
+@router.get("/blogs")
+async def read_blogs(
     # visibility: str | None = Query(None),
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db),
-) -> list[Blog]:
+    db=Depends(get_db),
+):
     """
     Retrieves a list of blogs from the database based on the specified criteria.
-
-    Returns:
-        list[Blog]: A list of Blog objects that match the specified criteria.
     """
-    query = db.query(Blog)
-    # if visibility:
-    #     query = query.filter(Blog.visibility == visibility)
-    blogs = query.offset(skip).limit(limit).all()
-
-    return blogs
+    try:
+        cursor = db.blogs_collection.find({}).skip(skip).limit(limit)
+        blogs = await cursor.to_list(length=limit)
+        return blogs
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Get blog by ID
-@router.get("/blogs/{blog_id}", response_model=Blog)
-def read_blog(blog_id: UUID, db: Session = Depends(get_db)) -> Blog:
+@router.get("/blogs/{blog_id}")
+async def read_blog(blog_id: str, db=Depends(get_db)):
     """
     Retrieves a single blog entry from the database based on the specified ID.
     """
-    blog = db.get(Blog, blog_id)
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
-        )
-    return blog
+    try:
+        blog = await db.blogs_collection.find_one({"_id": ObjectId(blog_id)})
+        if not blog:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+            )
+        return blog
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Create Blog
-@router.post("/blogs", status_code=status.HTTP_201_CREATED, response_model=Blog)
-def create_blog(
+@router.post("/blogs", status_code=status.HTTP_201_CREATED)
+async def create_blog(
     title: str,
     author: str,
     content: str,
-    db: Session = Depends(get_db),
+    db=Depends(get_db),
     # username: str = Depends(authenticate_user)
-) -> Blog:
+):
     """
     Creates a new blog entry in the database.
     """
-    blog = Blog(
-        id=uuid4(),
-        title=title,
-        author=author,
-        content=content,
-        date=datetime.datetime.now(datetime.timezone.utc),
-    )
-    db.add(blog)
-    db.commit()
-    db.refresh(blog)
-    return blog
+    try:
+        blog_doc = {
+            "title": title,
+            "author": author,
+            "content": content,
+            "date": datetime.now(timezone.utc),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
+
+        result = await db.blogs_collection.insert_one(blog_doc)
+        if result.inserted_id:
+            return await db.blogs_collection.find_one({"_id": blog_doc["_id"]})
+        raise HTTPException(status_code=400, detail="Failed to create blog")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/blogs/{blog_id}", response_model=Blog)
-def update_blog(
-    blog_id: UUID,
+@router.put("/blogs/{blog_id}")
+async def update_blog(
+    blog_id: str,
     updates: Dict[str, Any],
-    db: Session = Depends(get_db),
+    db=Depends(get_db),
     # username: str = Depends(authenticate_user)
-) -> Blog:
+):
     """
     Updates one or more fields of a blog entry in the database.
-
-    Args:
-        blog_id (UUID): The ID of the blog to update.
-        updates (Dict[str, Any]): A dictionary containing the fields to update and their new values.
-        db (Session): The database session.
-
-    Returns:
-        Blog: The updated blog entry.
-
-    Raises:
-        HTTPException: If the blog is not found or if there's an attempt to update a non-existent field.
     """
-    blog = db.get(Blog, blog_id)
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+    try:
+        # Verify blog exists
+        blog = await db.blogs_collection.find_one({"_id": ObjectId(blog_id)})
+        if not blog:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+            )
+
+        # Validate update fields
+        valid_fields = {"title", "author", "content"}
+        update_data = {}
+        for field, value in updates.items():
+            if field not in valid_fields:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid field: {field}",
+                )
+            update_data[field] = value
+
+        # Add updated timestamp
+        update_data["updated_at"] = datetime.utcnow()
+
+        # Perform update
+        result = await db.blogs_collection.update_one(
+            {"_id": ObjectId(blog_id)}, {"$set": update_data}
         )
 
-    valid_fields = {"title", "author", "content"}
-    for field, value in updates.items():
-        if field not in valid_fields:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid field: {field}",
-            )
-        setattr(blog, field, value)
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Blog update failed")
 
-    db.add(blog)
-    db.commit()
-    db.refresh(blog)
-    return blog
+        return await db.blogs_collection.find_one({"_id": blog_id})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Delete Blog
 @blog_router.delete("/blogs/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_blog(
-    blog_id: UUID,
-    db: Session = Depends(get_db),
+async def delete_blog(
+    blog_id: str,
+    db=Depends(get_db),
     # username: str = Depends(authenticate_user)
 ):
     """
     Deletes a blog entry from the database.
     """
-    blog = db.get(Blog, blog_id)
-    if not blog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
-        )
+    try:
+        result = await db.blogs_collection.delete_one({"_id": ObjectId(blog_id)})
 
-    db.delete(blog)
-    db.commit()
-    return {"message": "Blog deleted successfully"}
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found"
+            )
+
+        return {"message": "Blog deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
