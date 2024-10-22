@@ -1,15 +1,16 @@
 import cloudinary
 from core.config import settings
 from fastapi import FastAPI, status
-# from routes.auth import auth_router
-# from routes.links import link_router
-# from routes.users import users_router
-from routes.states import states_router
-# from routes.blogs import blog_router
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-# from routes.filmshow import filmshow_router
+
+from routes.states import states_router
+from routes.filmshow import filmshow_router
+# from routes.blogs import blog_router
+# from routes.auth import auth_router
+# from routes.links import link_router
+# from routes.users import users_router
 # from routes.discipleship import discipleship_router
 
 
@@ -24,11 +25,11 @@ app = FastAPI(
 
 # Routers
 app.include_router(states_router, prefix="/api/v1")
+app.include_router(filmshow_router, prefix="/api/v1")
 # app.include_router(link_router, prefix="/api/v1")
 # app.include_router(users_router, prefix="/api/v1")
 # app.include_router(auth_router, prefix="/api/v1")
 # app.include_router(blog_router, prefix="/api/v1")
-# app.include_router(filmshow_router, prefix="/api/v1")
 # app.include_router(discipleship_router, prefix="/api/v1")
 
 # Add CORS middleware

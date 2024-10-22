@@ -1,8 +1,7 @@
-from pydantic import BaseModel
-# from datetime import date
+from pydantic import BaseModel, Field
 from typing import Optional
 
-from sqlmodel import Field
+
 
 from models.states import States
 

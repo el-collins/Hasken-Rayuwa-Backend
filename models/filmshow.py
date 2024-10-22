@@ -1,27 +1,27 @@
-from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel
 from datetime import date
-from typing import Optional
+from typing import Annotated, Optional
+
+from pydantic import BaseModel, BeforeValidator, Field
 from models.states import States
 
 
-class FilmShowReport(SQLModel, table=True):
-    __tablename__ = "film_show_reports" # type: ignore
+PyObjectId = Annotated[str, BeforeValidator(str)]
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    Year: int = Field(default=date.today().year)
-    CreatedAt: date = Field(default=date.today())
-    Team: str = Field(...)
-    State: States = Field(index=True)
-    Ward: str = Field(...)
-    Village: str = Field(...)
-    LGA: Optional[str] = Field(default=None)
-    Population: Optional[int] = Field(default=None)
-    UPG: Optional[str] = Field(default=None)
+
+class FilmShowReport(BaseModel):
+    id: PyObjectId = Field(alias="_id")
+    Year: int = Field(default_factory=lambda: date.today().year)
+    CreatedAt: date = Field(default_factory=date.today)
+    Team: str 
+    State: States 
+    Ward: str 
+    Village: str 
+    LGA: Optional[str] = None
+    Population: Optional[int] = None
+    UPG: Optional[str] = None
     Attendance: int = Field(...)
-    SD_Cards: Optional[int] = Field(default=None)
-    Audio_Bibles: Optional[int] = Field(default=None)
-    People_Saved: Optional[int] = Field(default=None)
-    # Date: date = Field(...)
+    SD_Cards: Optional[int] = None
+    Audio_Bibles: Optional[int] = None
+    People_Saved: Optional[int] = None
     Date: Optional[str] = Field(...)
-    Month: str = Field(index=True)
+    Month: str 

@@ -99,7 +99,8 @@ async def upload_files(files: List[UploadFile] = File(...), db=Depends(get_db)):
             file_path = await save_file(file)
             df = await read_excel_file(file_path)
             await process_file(df, db)
-            await delete_file(file_path)
+        
+        await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,

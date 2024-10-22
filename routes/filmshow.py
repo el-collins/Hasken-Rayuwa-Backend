@@ -1,17 +1,16 @@
 # from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from sqlmodel import Session, select, delete
 from db.database import get_db
 from models.filmshow import FilmShowReport
 from schemas.filmshow import FilmShowReportCreate, FilmShowReportUpdate
 from typing import List
-from uuid import UUID
 from fastapi import (
     UploadFile,
     File,
     status,
 )
+from bson import ObjectId
 import os
 from pathlib import Path as FilePath
 import uuid
@@ -37,7 +36,6 @@ async def save_file(file: UploadFile) -> FilePath:
 
 
 async def delete_file(file_path: FilePath) -> None:
-    # Delete the file after processing
     os.remove(file_path)
 
 
@@ -46,7 +44,7 @@ async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
     return await loop.run_in_executor(None, pd.read_excel, file_path)
 
 
-def process_file(df: pd.DataFrame, db: Session) -> None:
+async def process_file(df: pd.DataFrame, db) -> None:
     try:
         for _, record in df.iterrows():
             # Handle different variations of FCT
@@ -69,14 +67,18 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                 date_str = str(date_str).split(" ")[0].replace("-", "/")
 
             record_data = {
+                "Team": record["Team"],
+                "State": state or record["State"],
                 "LGA": str(record["LGA"]) if pd.notna(record["LGA"]) else None,
+                "Ward": record["Ward"],
+                "Village": record["Village"],
                 "Population": (
                     int(record["Population"])
                     if pd.notna(record["Population"])
                     else None
                 ),
                 "UPG": record["UPG"] if pd.notna(record["UPG"]) else None,
-                "Attendance": int(record["Attendance"]),  # This should not be null
+                "Attendance": int(record["Attendance"]),
                 "SD_Cards": (
                     int(record["S.D Cards"]) if pd.notna(record["S.D Cards"]) else None
                 ),
@@ -90,61 +92,38 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                     if pd.notna(record["People Saved"])
                     else None
                 ),
-                # "Date": record["Date"].date(),
-                # "Date": date_obj or record["Date"],
-                "Date": date_str or str(record["Date"]),
+                "Date": date_str,
                 "Month": record["Month"].upper(),
             }
 
-            existing_record = (
-                db.query(FilmShowReport)
-                .filter_by(
-                    Team=record["Team"],
-                    State=state or record["State"],
-                    # LGA=record["LGA"],
-                    Ward=record["Ward"],
-                    Village=record["Village"],
-                    Date=date_str or str(record["Date"]),
-                    # Date=record["Date"].date(),
-                    # Date=date_obj or record["Date"],
-                    # Date=date_obj,
-                )
-                .first()
+            # Update existing record or insert new one
+            await db.filmshow_collection.update_one(
+                {
+                    "Team": record["Team"],
+                    "State": state or record["State"],
+                    "Ward": record["Ward"],
+                    "Village": record["Village"],
+                    "Date": date_str,
+                },
+                {"$set": record_data},
+                upsert=True,
             )
 
-            if existing_record:
-                for key, value in record_data.items():
-                    setattr(existing_record, key, value)
-            else:
-                filmshow_data = FilmShowReport(
-                    Team=record["Team"],
-                    State=state or record["State"],
-                    # LGA=record["LGA"],
-                    Ward=record["Ward"],
-                    Village=record["Village"],
-                    **record_data,
-                )
-                db.add(filmshow_data)
-
-        db.commit()
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error inserting data: {str(e)}")
 
 
 @router.post("/filmshow-upload")
-async def upload_files(
-    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
-):
+async def upload_files(files: List[UploadFile] = File(...), db=Depends(get_db)):
 
     try:
         for file in files:
             file_path = await save_file(file)
-            try:
-                df = await read_excel_file(file_path)
-                process_file(df, db)
-            finally:
-                await delete_file(file_path)
+            df = await read_excel_file(file_path)
+            await process_file(df, db)
+
+        await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -161,98 +140,94 @@ async def upload_files(
 
 # API for posting data manually
 @router.post("/film-show-report/", status_code=201, response_model=FilmShowReport)
-def create_film_show_report(
-    report: FilmShowReportCreate, db: Session = Depends(get_db)
-):
+async def create_film_show_report(report: FilmShowReportCreate, db=Depends(get_db)):
     """Create a new film show report manually."""
     try:
-        db_report = FilmShowReport(**report.dict())
-        db.add(db_report)
-        db.commit()
-        db.refresh(db_report)
-        return db_report
+        report_dict = report.model_dump()
+        # report_dict["_id"] = str(ObjectId())
+        await db.filmshow_collection.insert_one(report_dict)
+        return FilmShowReport(**report_dict)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/film-show-reports/", response_model=List[FilmShowReport])
-def get_all_film_show_reports(
-    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
+async def get_all_film_show_reports(
+    skip: int = 0, limit: int = 100, db=Depends(get_db)
 ):
     """Fetch all film show reports."""
     try:
-        reports = db.exec(select(FilmShowReport).offset(skip).limit(limit)).all()
-        return reports
-        # Assuming FilmShowReport has a 'created_at' field
+        cursor = db.filmshow_collection.find().skip(skip).limit(limit)
+        reports = await cursor.to_list(length=limit)
+        return [FilmShowReport(**report) for report in reports]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 # API for fetching all data in a particular month
 @router.get("/film-show-reports/{month}", response_model=List[FilmShowReport])
-def get_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
+async def get_film_show_reports_by_month(month: str, db=Depends(get_db)):
     """Fetch all film show reports for a particular month."""
     month = month.upper()
     try:
-        reports = db.exec(
-            select(FilmShowReport).where(FilmShowReport.Month == month.upper())
-        ).all()
+        cursor = db.filmshows.find({"Month": month})
+        reports = await cursor.to_list(length=None)
         if not reports:
             raise HTTPException(
                 status_code=404, detail=f"No reports found for month: {month}"
             )
-        return reports
+        return [FilmShowReport(**report) for report in reports]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 # Retrieves data by ID
 @router.get("/film-show-report/{report_id}", response_model=FilmShowReport)
-def get_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
+async def get_film_show_report(report_id: str, db=Depends(get_db)):
     """Fetch a film show report by ID."""
     try:
-        db_report = db.get(FilmShowReport, report_id)
-        if not db_report:
+        report = await db.filmshow_collection.find_one({"_id": ObjectId(report_id)})
+        if not report:
             raise HTTPException(status_code=404, detail="Report not found")
-        return db_report
+        return FilmShowReport(**report)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 # API for updating/editing one or more fields by ID
 @router.put("/film-show-report/{report_id}", response_model=FilmShowReport)
-def update_film_show_report(
-    report_id: UUID, report_update: FilmShowReportUpdate, db: Session = Depends(get_db)
+async def update_film_show_report(
+    report_id: str, report_update: FilmShowReportUpdate, db=Depends(get_db)
 ):
     """Update a film show report."""
     try:
-        db_report = db.get(FilmShowReport, report_id)
-        if not db_report:
+        update_data = {k: v for k, v in report_update.dict(exclude_unset=True).items()}
+
+        result = await db.filmshow_collection.update_one(
+            {"_id": ObjectId(report_id)}, {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Report not found")
 
-        report_data = report_update.dict(exclude_unset=True)
-        for key, value in report_data.items():
-            setattr(db_report, key, value)
-
-        db.add(db_report)
-        db.commit()
-        db.refresh(db_report)
-        return db_report
+        updated_report = await db.filmshow_collection.find_one(
+            {"_id": ObjectId(report_id)}
+        )
+        return FilmShowReport(**updated_report)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 # API for deleting data
 @router.delete("/film-show-report/{report_id}", response_model=dict)
-def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
+async def delete_film_show_report(report_id: str, db=Depends(get_db)):
     """Delete a film show report."""
     try:
-        db_report = db.get(FilmShowReport, report_id)
-        if not db_report:
+        result = await db.filmshow_collection.delete_one({"_id": ObjectId(report_id)})
+        
+        if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Report not found")
-
-        db.delete(db_report)
-        db.commit()
+            
         return {"message": "Report deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -260,29 +235,21 @@ def delete_film_show_report(report_id: UUID, db: Session = Depends(get_db)):
 
 # API for deleting data by month
 @router.delete("/film-show-reports/{month}", response_model=dict)
-def delete_film_show_reports_by_month(month: str, db: Session = Depends(get_db)):
+async def delete_film_show_reports_by_month(month: str, db=Depends(get_db)):
     """Delete all film show reports for a particular month."""
     try:
         # Convert month to uppercase for consistency
         month = month.upper()
-
-        # Select all reports for the given month
-        statement = select(FilmShowReport).where(FilmShowReport.Month == month)
-        reports = db.exec(statement).all()
-
-        if not reports:
-            raise HTTPException(
-                status_code=404, detail=f"No reports found for month: {month}"
-            )
-
-        # Delete all reports for the given month
-        delete_statement = delete(FilmShowReport).where(FilmShowReport.Month == month)  # type: ignore
-        db.exec(delete_statement)  # type: ignore
-        db.commit()
-
+        count = await db.filmshow_collection.count_documents({"Month": month})
+        
+        if count == 0:
+            raise HTTPException(status_code=404, detail=f"No reports found for month: {month}")
+        
+        result = await db.filmshow_collection.delete_many({"Month": month})
+        
         return {
             "message": f"All reports for month {month} deleted successfully",
-            "count": len(reports),
+            "count": result.deleted_count
         }
     except Exception as e:
         db.rollback()
