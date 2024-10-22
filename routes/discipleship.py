@@ -1,11 +1,9 @@
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
 from db.database import get_db
 from models.discipleship import DiscipleshipReport
 from schemas.discipleship import DiscipleshipReportCreate, DiscipleshipReportUpdate
 from typing import List
-from uuid import UUID
 from fastapi.responses import JSONResponse
 from fastapi import (
     UploadFile,
@@ -17,6 +15,7 @@ from pathlib import Path as FilePath
 import uuid
 import pandas as pd
 from models.states import States
+from bson import ObjectId
 
 discipleship_router = router = APIRouter(tags=["Discipleship Report"])
 
@@ -43,7 +42,7 @@ async def read_excel_file(file_path: FilePath) -> pd.DataFrame:
     return await loop.run_in_executor(None, pd.read_excel, file_path)
 
 
-def process_file(df: pd.DataFrame, db: Session) -> None:
+async def process_file(df: pd.DataFrame, db) -> None:
     try:
         for _, record in df.iterrows():
 
@@ -56,19 +55,13 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                     state = States(state)
                 except ValueError:
                     raise ValueError(f"Invalid state: {state}")
-            existing_record = (
-                db.query(DiscipleshipReport)
-                .filter_by(
-                    Team=record["Team"],
-                    State=state or record["State"],
-                    LGA=record["LGA"],
-                    Ward=record["Ward"],
-                    Village=record["Village"],
-                )
-                .first()
-            )
 
             record_data = {
+                "Team": record["Team"],
+                "State": state or record["State"],
+                "LGA": str(record["LGA"]) if pd.notna(record["LGA"]) else None,
+                "Ward": record["Ward"],
+                "Village": record["Village"],
                 "Population": (
                     int(record["Population"])
                     if pd.notna(record["Population"])
@@ -89,24 +82,21 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
                     if pd.notna(record["Bibles Given"])
                     else None
                 ),
-                "Month": record["Month"],
+                "Month": record["Month"].upper(),
             }
 
-            if existing_record:
-                for key, value in record_data.items():
-                    setattr(existing_record, key, value)
-            else:
-                discipleship_data = DiscipleshipReport(
-                    Team=record["Team"],
-                    State=record["State"],
-                    LGA=record["LGA"],
-                    Ward=record["Ward"],
-                    Village=record["Village"],
-                    **record_data,
-                )
-                db.add(discipleship_data)
-
-        db.commit()
+            # Update existing record or insert new one
+            await db.discipleship_collection.update_one(
+                {
+                    "Team": record["Team"],
+                    "State": state or record["State"],
+                    "Ward": record["Ward"],
+                    "Village": record["Village"],
+                    "Month": record["Month"].upper(),
+                },
+                {"$set": record_data},
+                upsert=True,
+            )
 
     except Exception as e:
         db.rollback()
@@ -114,18 +104,14 @@ def process_file(df: pd.DataFrame, db: Session) -> None:
 
 
 @router.post("/discipleship-upload")
-async def upload_files(
-    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
-):
+async def upload_files(files: List[UploadFile] = File(...), db=Depends(get_db)):
 
     try:
         for file in files:
             file_path = await save_file(file)
-            try:
-                df = await read_excel_file(file_path)
-                process_file(df, db)
-            finally:
-                await delete_file(file_path)
+            df = await read_excel_file(file_path)
+            await process_file(df, db)
+        await delete_file(file_path)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -144,36 +130,33 @@ async def upload_files(
 @router.post(
     "/discipleship-report/", status_code=201, response_model=DiscipleshipReport
 )
-def create_discipleship_report(
-    report: DiscipleshipReportCreate, db: Session = Depends(get_db)
+async def create_discipleship_report(
+    report: DiscipleshipReportCreate, db=Depends(get_db)
 ):
     try:
-        db_report = DiscipleshipReport(**report.dict())
-        db.add(db_report)
-        db.commit()
-        db.refresh(db_report)
-        return db_report
+        report_dict = report.model_dump()
+        await db.discipleship_collection.insert_one(report_dict)
+        return DiscipleshipReport(**report_dict)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/discipleship-reports/", response_model=List[DiscipleshipReport])
-def get_all_discipleship_reports(
-    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
+async def get_all_discipleship_reports(
+    skip: int = 0, limit: int = 100, db=Depends(get_db)
 ):
     try:
-
-        reports = db.exec(select(DiscipleshipReport).offset(skip).limit(limit)).all()
-        return reports
+        cursor = db.discipleship_collection.find().skip(skip).limit(limit)
+        reports = await cursor.to_list(length=limit)
+        return [DiscipleshipReport(**report) for report in reports]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/discipleship-report/{report_id}", response_model=DiscipleshipReport)
-def get_discipleship_report(report_id: UUID, db: Session = Depends(get_db)):
+async def get_discipleship_report(report_id: str, db=Depends(get_db)):
     try:
-
-        report = db.get(DiscipleshipReport, report_id)
+        report = await db.discipleship_collection.find_one({"_id": ObjectId(report_id)})
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
         return report
@@ -184,52 +167,52 @@ def get_discipleship_report(report_id: UUID, db: Session = Depends(get_db)):
 @router.get(
     "/discipleship-report/month/{month}", response_model=List[DiscipleshipReport]
 )
-def get_discipleship_reports_by_month(month: str, db: Session = Depends(get_db)):
+async def get_discipleship_reports_by_month(month: str, db=Depends(get_db)):
     try:
-        reports = db.exec(
-            select(DiscipleshipReport).where(DiscipleshipReport.Month == month.upper())
-        ).all()
+        cursor = db.discipleship_collection.find({"Month": month.upper()})
+        reports = await cursor.to_list(length=None)
         if not reports:
             raise HTTPException(
                 status_code=404, detail=f"No reports found for month: {month}"
             )
-        return reports
+        return [DiscipleshipReport(**report) for report in reports]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/discipleship-report/{report_id}", response_model=DiscipleshipReport)
-def update_discipleship_report(
-    report_id: UUID,
+async def update_discipleship_report(
+    report_id: str,
     report_update: DiscipleshipReportUpdate,
-    db: Session = Depends(get_db),
+    db=Depends(get_db),
 ):
     try:
-        db_report = db.get(DiscipleshipReport, report_id)
-        if not db_report:
+        update_data = {k: v for k, v in report_update.dict(exclude_unset=True).items()}
+
+        result = await db.discipleship_collection.update_one(
+            {"_id": ObjectId(report_id)}, {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Report not found")
 
-        report_data = report_update.dict(exclude_unset=True)
-        for key, value in report_data.items():
-            setattr(db_report, key, value)
-
-        db.add(db_report)
-        db.commit()
-        db.refresh(db_report)
-        return db_report
+        updated_report = await db.discipleship_collection.find_one(
+            {"_id": ObjectId(report_id)}
+        )
+        return DiscipleshipReport(**updated_report)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/discipleship-report/{report_id}", response_model=dict)
-def delete_discipleship_report(report_id: UUID, db: Session = Depends(get_db)):
+async def delete_discipleship_report(report_id: str, db=Depends(get_db)):
     try:
-        db_report = db.get(DiscipleshipReport, report_id)
-        if not db_report:
+        result = await db.discipleship_collection.delete_one(
+            {"_id": ObjectId(report_id)}
+        )
+        if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Report not found")
 
-        db.delete(db_report)
-        db.commit()
         return {"message": "Report deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

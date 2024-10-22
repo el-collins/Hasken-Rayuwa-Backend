@@ -1,26 +1,26 @@
-from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel
-from typing import Optional
+from typing import Annotated, Optional
 from datetime import date
+
+from pydantic import BaseModel, BeforeValidator, Field
 
 from models.states import States
 
+PyObjectId = Annotated[str, BeforeValidator(str)]
 
-class DiscipleshipReport(SQLModel, table=True):
-    __tablename__ = "discipleship_reports"  # type: ignore
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    Year: int = Field(default=date.today().year)
-    CreatedAt: date = Field(default=date.today())
-    Month: str = Field(index=True)
-    State: States = Field(index=True)
-    LGA: str = Field(...)
-    Ward: str = Field(...)
-    Village: str = Field(...)
-    Team: str = Field(...)
-    Population: Optional[int] = Field(default=None)
-    UPG: Optional[str] = Field(default=None)
-    Attendance: Optional[int] = Field(default=None)
-    SD_Cards: Optional[int] = Field(default=None)
-    Manuals_Given: Optional[int] = Field(default=None)
-    Bibles_Given: Optional[int] = Field(default=None)
+class DiscipleshipReport(BaseModel):
+    id: PyObjectId = Field(alias="_id")
+    Year: int = Field(default_factory=lambda: date.today().year)
+    CreatedAt: date = Field(default_factory=date.today)
+    Month: str
+    State: States
+    LGA: Optional[str] = None
+    Ward: str
+    Village: str
+    Team: str
+    Population: Optional[int] = None
+    UPG: Optional[str] = None
+    Attendance: Optional[int] = None
+    SD_Cards: Optional[int] = None
+    Manuals_Given: Optional[int] = None
+    Bibles_Given: Optional[int] = None

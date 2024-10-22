@@ -1,13 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional
 
-from sqlmodel import Field
 
 from models.states import States
 
 class DiscipleshipReportCreate(BaseModel):
     Month: str
-    State: States = Field(...)
+    State: States 
     LGA: str
     Ward: str
     Village: str
