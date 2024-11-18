@@ -36,7 +36,7 @@ app.include_router(blog_router, prefix="/api/v1")
 app.add_middleware(
     CORSMiddleware,
     # allow_origins=["*"],
-    allow_origins=[
+    allow_origins=["https://lightoflifeafrica.org",
         "https://hasken-rayuwa.web.app",
         "https://hasken-rayuwa.web.app/",
         "http://localhost:5173",
